@@ -27,6 +27,27 @@ DEFAULT_COLOR = 'black'
 LIGHT_GRAY = (200, 200, 200)
 PINK = (255, 192, 203)
 
+TYPES = {
+    'default': {
+        'canvas_dimensions': (32, 32),
+        'text_box': {'width': 32, 'height': 32},
+        'font_size': 10,
+        'text_gravity': 'north-west',
+        'canvas_gravity': 'north-west',
+    },
+    'monster': {
+        'canvas_dimensions': (32, 64),
+        'text_box': {'width': 48, 'height': 32},
+        'font_size': 10,
+        'text_gravity': 'north-west',
+        'canvas_gravity': 'south',
+        'background': 'backgrounds/creature.png',
+        'vips_methods': {
+            'rot90': {},
+        }
+    }
+}
+
 # constants
 COLOR_DEFS_DIR = 'data/raw/colors.json'
 COLOR_PREFIXES = ('i', 'c', 'h')
@@ -150,8 +171,25 @@ def output(type_, id_, text, color_fg, color_bg, dir_tree=True):
     '''
     Create directory structure, generate and write files.
     '''
+    # get type settings
+    if type_ in TYPES:
+        type_settings = TYPES[type_]
+    else:
+        type_settings = TYPES['default']
+
+    canvas_dimensions = type_settings['canvas_dimensions']
+    text_box = type_settings['text_box']
+    font_size = type_settings['font_size']
+    text_gravity = type_settings['text_gravity']
+    canvas_gravity = type_settings['canvas_gravity']
+    background = type_settings.get('background')  # FIXME: use
+    vips_methods = type_settings.get('vips_methods', {})
+
+    # setup output directory
+    size_dir = 'tff_' + 'x'.join(map(str, canvas_dimensions))
+
     if dir_tree:
-        dirpath = Path(os.path.join(DIR, type_, id_))
+        dirpath = Path(os.path.join(size_dir, type_, id_))
         dirpath.mkdir(parents=True, exist_ok=True)
     else:
         dirpath = Path(DIR)
@@ -159,36 +197,38 @@ def output(type_, id_, text, color_fg, color_bg, dir_tree=True):
     filepath_json = os.path.join(dirpath, f'{id_}.json')
     filepath_png = os.path.join(dirpath, f'{id_}.png')
 
+    # write JSON
     with open(filepath_json, 'w') as fp:
-        json_dict = [{'id': id_, 'fg': id_, 'bg': []}]
+        json_dict = [{'id': id_, 'fg': id_, 'bg': ''}]
         json.dump(json_dict, fp, **JSON_DUMP_ARGS)
 
+    # prepare text
     text = shorten_text(text)
-    font_size = 10
-    if len(text) < 14:
-        font_size = 12
-
     if len(text) > 4:
         text = add_textbreaks(text, 4)
 
-    if type_ == 'monster':
-        dimensions = {'width': 48, 'height': 32}
-    else:
-        dimensions = {'width': 32, 'height': 32}
+    # render colored text image
     original_text = pyvips.Image.text(
         text, font=f'{FONT} {font_size}',
-        dpi=72, **dimensions)[0]  # autofit_dpi=True)[0]
+        dpi=72, **text_box)[0]  # autofit_dpi=True)[0]
     boxed_text = original_text.copy(interpretation='srgb')\
-        .gravity('north-west', *dimensions.values())
+        .gravity(text_gravity, *text_box.values())
     text_color = boxed_text.new_from_image(color_fg)
     text_image = text_color.bandjoin(boxed_text)
 
+    # render shadow
     shadow_image = render_shadow(boxed_text, color_fg, color_bg)
 
+    # add shadow to the text image
     final = text_image.composite2(
         shadow_image, SHADOW_BLEND_MODE, **SHADOW_OFFSET)
-    if type_ == 'monster':
-        final = final.rot90().gravity('south', 32, 64)
+
+    # per-type operations
+    for method, method_arguments in vips_methods.items():
+        final = getattr(final, method)(**method_arguments)
+
+    final = final.gravity(canvas_gravity, *canvas_dimensions)
+
     final.write_to_file(filepath_png)
 
 
