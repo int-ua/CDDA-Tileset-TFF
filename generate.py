@@ -18,6 +18,7 @@ DIR = 'text_fallback_fillers'
 GAME_DIR = '../Cataclysm-DDA'
 FONT = 'Liberation Sans Narrow, Condensed'
 SHADOW_BLEND_MODE = 'add'
+BACKGROUND_BLEND_MODE = 'overlay'
 SHADOW_OFFSET = {
     'x': 1,
     'y': 1
@@ -182,7 +183,7 @@ def output(type_, id_, text, color_fg, color_bg, dir_tree=True):
     font_size = type_settings['font_size']
     text_gravity = type_settings['text_gravity']
     canvas_gravity = type_settings['canvas_gravity']
-    background = type_settings.get('background')  # FIXME: use
+    background = type_settings.get('background')
     vips_methods = type_settings.get('vips_methods', {})
 
     # setup output directory
@@ -226,8 +227,11 @@ def output(type_, id_, text, color_fg, color_bg, dir_tree=True):
     # per-type operations
     for method, method_arguments in vips_methods.items():
         final = getattr(final, method)(**method_arguments)
-
     final = final.gravity(canvas_gravity, *canvas_dimensions)
+
+    if background:
+        back_image = pyvips.Image.new_from_file(background)
+        final = final.composite2(back_image, BACKGROUND_BLEND_MODE)
 
     final.write_to_file(filepath_png)
 
