@@ -12,12 +12,14 @@ For Ultica it's `gfx/UltimateCataclysm/pngs_fillerhoder_32x32/`.
 ```
 
 
-### Generate new, WIP
+### Generate new
 
-Getting game data:
+0. [Set up your Python virtual environment](https://docs.python.org/3/tutorial/venv.html) and install `requirements.txt`.
+1.
 ```sh
 ./Cataclysm-DDA/tools/json_tools/table.py -f csv --nonestring "" \
 -t "AMMO,ARMOR,BATTERY,BIONIC_ITEM,BOOK,COMESTIBLE,ENGINE,field_type,GENERIC,GUN,GUNMOD,MAGAZINE,MONSTER,PET_ARMOR,TOOL,TOOL_ARMOR,TOOLMOD,trap,WHEEL" \
 type id name color looks_like "copy-from" > tff-input.csv
+cd CDDA-Tileset-TFF
+./generate.py ../tff-input.csv
 ```
-Script will be published later.
