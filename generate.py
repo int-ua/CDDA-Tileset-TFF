@@ -171,12 +171,15 @@ def output(type_, id_, text, color_fg, color_bg, dir_tree=True):
     if len(text) > 4:
         text = add_textbreaks(text, 4)
 
+    if type_ == 'monster':
+        dimensions = {'width': 48, 'height': 32}
+    else:
+        dimensions = {'width': 32, 'height': 32}
     original_text = pyvips.Image.text(
         text, font=f'{FONT} {font_size}',
-        width=32, height=32,
-        dpi=72)[0]  # autofit_dpi=True)[0]
+        dpi=72, **dimensions)[0]  # autofit_dpi=True)[0]
     boxed_text = original_text.copy(interpretation='srgb')\
-        .gravity('north-west', 32, 32)
+        .gravity('north-west', *dimensions.values())
     text_color = boxed_text.new_from_image(color_fg)
     text_image = text_color.bandjoin(boxed_text)
 
@@ -184,6 +187,8 @@ def output(type_, id_, text, color_fg, color_bg, dir_tree=True):
 
     final = text_image.composite2(
         shadow_image, SHADOW_BLEND_MODE, **SHADOW_OFFSET)
+    if type_ == 'monster':
+        final = final.rot90().gravity('south', 32, 64)
     final.write_to_file(filepath_png)
 
 
